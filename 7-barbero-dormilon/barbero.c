@@ -21,47 +21,66 @@ clientes utilizando semáforos.
 sem_t sem_barbero, sem_cliente;
 pthread_mutex_t mutex_sillas = PTHREAD_MUTEX_INITIALIZER;
 pthread_t thread_cliente[CLIENTES], thread_barbero;
-int sillas_disponibles = SILLAS;
+int sillas_disponibles = SILLAS, cortes_realizados = 0;
 _Bool barbero_durmiendo = 1;
 
 void* barbero(void* arg) {
-    for (int i=0; i<CANT_CORTES; i++) {
+    sem_wait(&sem_barbero);
+    while(cortes_realizados < CANT_CORTES) {
         if(sillas_disponibles == SILLAS) {
             printf("Barbero durmiendo...\n");
             barbero_durmiendo = 1;
         } else {
-            sem_wait(&sem_barbero);
             pthread_mutex_lock(&mutex_sillas);
-                printf("Barbero llama al cliente %d y le corta el pelo.\n", i+1);
+                printf("Barbero llama al cliente %d y le corta el pelo.\n", cortes_realizados+1);
                 sillas_disponibles++;
+                cortes_realizados++;
+                if(cortes_realizados == CANT_CORTES) {
+                    for (int j=0; j<CLIENTES-CANT_CORTES; j++) 
+                        sem_post(&sem_cliente); 
+                }
             pthread_mutex_unlock(&mutex_sillas);
-            sleep(1);
-            printf("Barbero terminó de cortar el pelo al cliente %d\n",i+1);
-            sem_post(&sem_cliente);
+            sleep(2);
+            printf("Barbero terminó de cortar el pelo al cliente %d\n",cortes_realizados);
         }
+        sem_post(&sem_cliente);
     }
-    printf("Barbero ha terminado su jornada laboral.\n");
+    for (int j=0; j<CLIENTES-CANT_CORTES; j++) 
+        sem_post(&sem_cliente); 
+    printf("Barbero ha terminado su jornada y cierra la barbería.\n");
     return NULL;
 }
 
 void* cliente(void* arg) {
     int id = (int)(intptr_t) arg;
-    for (int i=0; i<CLIENTES; i++) {
-        if(sillas_disponibles == 0)
+
+    pthread_mutex_lock(&mutex_sillas);
+        if(sillas_disponibles == 0) {
             printf("No hay sillas disponibles. Cliente %d se va.\n", id);
-        else  {
-            sem_wait(&sem_cliente);
-            pthread_mutex_lock(&mutex_sillas);
-                if(barbero_durmiendo) {
-                    printf("Cliente %d despierta al barbero.\n",id);
-                    barbero_durmiendo = 0;
-                }
-                printf("Cliente %d se sienta en la sala de espera.\n",id);
-                sillas_disponibles--;
-                sem_post(&sem_barbero);
             pthread_mutex_unlock(&mutex_sillas);
+            return NULL;
         }
-    }
+    pthread_mutex_unlock(&mutex_sillas);
+    sem_wait(&sem_cliente);
+    printf("Cliente %d entra a la barbería.\n",id);
+    pthread_mutex_lock(&mutex_sillas);
+        if(barbero_durmiendo) {
+            printf("Cliente %d despierta al barbero.\n",id);
+            barbero_durmiendo = 0;
+        }
+        if (cortes_realizados == CANT_CORTES) {
+            printf("Cliente %d se va, el barbero ha terminado su jornada.\n", id);
+            pthread_mutex_unlock(&mutex_sillas);
+            sem_post(&sem_barbero);
+            return NULL;
+        } else {
+            printf("Cliente %d se sienta en la sala de espera.\n",id);
+            sillas_disponibles--;
+        }
+    pthread_mutex_unlock(&mutex_sillas);
+    sem_post(&sem_barbero);
+
+    return NULL;
 }
 
 
