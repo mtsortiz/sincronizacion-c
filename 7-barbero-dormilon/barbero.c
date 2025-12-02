@@ -47,7 +47,7 @@ void* barbero(void* arg) {
     }
     for (int j=0; j<CLIENTES-CANT_CORTES; j++) 
         sem_post(&sem_cliente); 
-    printf("Barbero ha terminado su jornada y cierra la barbería.\n");
+    printf("Barbero ha terminado su jornada, echa a los clientes restantes y cierra la barbería.\n");
     return NULL;
 }
 
@@ -68,15 +68,8 @@ void* cliente(void* arg) {
             printf("Cliente %d despierta al barbero.\n",id);
             barbero_durmiendo = 0;
         }
-        if (cortes_realizados == CANT_CORTES) {
-            printf("Cliente %d se va, el barbero ha terminado su jornada.\n", id);
-            pthread_mutex_unlock(&mutex_sillas);
-            sem_post(&sem_barbero);
-            return NULL;
-        } else {
-            printf("Cliente %d se sienta en la sala de espera.\n",id);
-            sillas_disponibles--;
-        }
+        printf("Cliente %d se sienta en la sala de espera.\n",id);
+        sillas_disponibles--; 
     pthread_mutex_unlock(&mutex_sillas);
     sem_post(&sem_barbero);
 
