@@ -9,6 +9,9 @@
 #include <semaphore.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <time.h>
 
 #define LANZADORES_JABALINA 3
 #define LANZADORES_MARTILLO 3
@@ -21,25 +24,31 @@ int corredor= 0, lanzador= 0;
 
 void* atleta_jabalina(void* arg) {
     int id = (int)(intptr_t) arg;
+    sleep(rand() % 3); 
+    bool entro= false;
     printf("Lanzador de jabalina %d quiere entrar al club\n", id);
-    sem_wait(&sem_jabalina);
-    pthread_mutex_lock(&mutex_club);
-    if (lanzador == 0 && corredor == 0) {
-        lanzador++;
-        pthread_mutex_unlock(&mutex_club);
-        printf("Lanzador de jabalina %d entrenando...\n", id);
-        
-        sleep(2);
-        
-        printf("Lanzador de jabalina %d terminó de entrenar.\n", id);
-        sem_post(&sem_jabalina);
+    while(!entro) {
+        sem_wait(&sem_jabalina);
         pthread_mutex_lock(&mutex_club);
-        lanzador--;
-        pthread_mutex_unlock(&mutex_club);
-    } else {
-        pthread_mutex_unlock(&mutex_club);
-        printf("Lanzador de jabalina %d esperando...\n", id);
-        sem_post(&sem_jabalina);
+        if (lanzador == 0 && corredor == 0) {
+            lanzador++;
+            entro= true;
+            pthread_mutex_unlock(&mutex_club);
+
+            printf("Lanzador de jabalina %d entrenando...\n", id);        
+            sleep(2);
+            printf("Lanzador de jabalina %d terminó de entrenar.\n", id);
+            
+            pthread_mutex_lock(&mutex_club);
+            lanzador--;
+            pthread_mutex_unlock(&mutex_club);
+            sem_post(&sem_jabalina);
+        } else {
+            pthread_mutex_unlock(&mutex_club);
+            printf("Lanzador de jabalina %d esperando...\n", id);
+            sem_post(&sem_jabalina);
+            sleep(1);
+        }
     }
 
     return NULL;
@@ -47,25 +56,31 @@ void* atleta_jabalina(void* arg) {
 
 void* atleta_martillo(void* arg) {
     int id = (int)(intptr_t) arg;
+    sleep(rand() % 3); 
+    bool entro= false;
     printf("Lanzador de martillo %d quiere entrar al club\n", id);
-    sem_wait(&sem_martillo);
-    pthread_mutex_lock(&mutex_club);
-    if (lanzador == 0 && corredor == 0) {
-        lanzador++;
-        pthread_mutex_unlock(&mutex_club);
-        printf("Lanzador de martillo %d entrenando...\n", id);
-        
-        sleep(2);
-        
-        printf("Lanzador de martillo %d terminó de entrenar.\n", id);
-        sem_post(&sem_martillo);
+    while(!entro) {
+        sem_wait(&sem_martillo);
         pthread_mutex_lock(&mutex_club);
-        lanzador--;
-        pthread_mutex_unlock(&mutex_club);
-    } else {
-        pthread_mutex_unlock(&mutex_club);
-        printf("Lanzador de martillo %d esperando...\n", id);
-        sem_post(&sem_martillo);
+        if (lanzador == 0 && corredor == 0) {
+            lanzador++;
+            entro= true;
+            pthread_mutex_unlock(&mutex_club);
+
+            printf("Lanzador de martillo %d entrenando...\n", id);
+            sleep(2);
+            printf("Lanzador de martillo %d terminó de entrenar.\n", id);
+            
+            pthread_mutex_lock(&mutex_club);
+            lanzador--;
+            pthread_mutex_unlock(&mutex_club);
+            sem_post(&sem_martillo);
+        } else {
+            pthread_mutex_unlock(&mutex_club);
+            printf("Lanzador de martillo %d esperando...\n", id);
+            sem_post(&sem_martillo);
+            sleep(1);
+        }
     }
 
     return NULL;
@@ -73,40 +88,50 @@ void* atleta_martillo(void* arg) {
 
 void* atleta_corredor(void* arg) {
     int id = (int)(intptr_t) arg;
+    sleep(rand() % 3); 
+    bool entro= false;
     printf("Corredor %d quiere entrar al club\n", id);
-    sem_wait(&sem_corredor);
-    pthread_mutex_lock(&mutex_club);
-    if(lanzador == 0 && corredor <=1) {
-        corredor++;
-        pthread_mutex_unlock(&mutex_club);
-        printf("Corredor %d entrenando...\n", id);
-
-        sleep(2);
-
-        printf("Corredor %d terminó de entrenar\n", id);
-        sem_post(&sem_corredor);
+    while(!entro) {
+        sem_wait(&sem_corredor);
         pthread_mutex_lock(&mutex_club);
-        corredor--;
-        pthread_mutex_unlock(&mutex_club);    
-    } else {
-        pthread_mutex_unlock(&mutex_club);
-        printf("Corredor %d esperando...\n", id);
-        sem_post(&sem_corredor);
+        if(lanzador == 0) {
+            corredor++;
+            entro= true;
+            pthread_mutex_unlock(&mutex_club);
+
+            printf("Corredor %d entrenando...\n", id);
+            sleep(2);
+            printf("Corredor %d terminó de entrenar\n", id);
+            
+            sem_post(&sem_corredor);
+            pthread_mutex_lock(&mutex_club);
+            corredor--;
+            pthread_mutex_unlock(&mutex_club);    
+        } else {
+            pthread_mutex_unlock(&mutex_club);
+            printf("Corredor %d esperando...\n", id);
+            sem_post(&sem_corredor);
+            sleep(1);
+        }
     }
+
     return NULL;
 }
 
 
 int main() {
+    //Inicialización de la semilla para números aleatorios
+    srand(time(NULL));
+
     //Declaración de threads 
     pthread_t thread_jabalina[LANZADORES_JABALINA];
     pthread_t thread_martillo[LANZADORES_MARTILLO];
     pthread_t thread_corredor[CORREDORES];
 
     //Inicialización de semáforos
-    sem_init(&sem_jabalina, 0, 0);
-    sem_init(&sem_martillo, 0, 0);
-    sem_init(&sem_corredor, 0, 2); 
+    sem_init(&sem_jabalina, 0, 1);
+    sem_init(&sem_martillo, 0, 1);
+    sem_init(&sem_corredor, 0, CORREDORES); 
 
     //Creación de threads
     for (int i=0; i<3; i++) {
